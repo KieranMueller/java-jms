@@ -11,6 +11,7 @@ import javax.naming.InitialContext;
 import javax.naming.NamingException;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @SpringBootApplication
@@ -359,6 +360,68 @@ public class Jmsfundamentals2Application {
             log.warn("Message Received: {}", messageReceived.getBody(String.class));
             log.warn("isFactual: {}", messageReceived.getBooleanProperty("isFactual"));
             log.warn("otherAnimalThatIsCool: {}", messageReceived.getStringProperty("otherAnimalThatIsCool"));
+        }
+    }
+
+    @Bean
+    public void messageTypes() throws NamingException, JMSException {
+        log.info("Starting messageTypes()");
+
+        InitialContext context = new InitialContext();
+        Queue queue = (Queue) context.lookup("queue/myQueue");
+
+        try (ActiveMQConnectionFactory cf = new ActiveMQConnectionFactory();
+             JMSContext jmsContext = cf.createContext()) {
+
+            JMSProducer producer = jmsContext.createProducer();
+
+            BytesMessage bytesMessage = jmsContext.createBytesMessage();
+            bytesMessage.writeUTF("Kieran Bytes Message");
+            bytesMessage.writeLong(123L);
+
+            StreamMessage streamMessage = jmsContext.createStreamMessage();
+            streamMessage.writeString("Kieran Stream Message");
+            streamMessage.writeLong(456L);
+
+            MapMessage mapMessage = jmsContext.createMapMessage();
+            mapMessage.setString("yourName", "Jasper");
+            mapMessage.setDouble("amount", 22.23);
+
+//            producer.send(queue, bytesMessage);
+//            producer.send(queue, streamMessage);
+            producer.send(queue, mapMessage);
+
+//            BytesMessage bytesReceived = (BytesMessage) jmsContext.createConsumer(queue).receive();
+//            log.warn("Bytes UTF message received: {}", bytesReceived.readUTF());
+//            log.warn("Bytes Long message received: {}", bytesReceived.readLong());
+//            StreamMessage streamReceived = (StreamMessage) jmsContext.createConsumer(queue).receive();
+//            log.warn("Stream String received: {}", streamReceived.readString());
+//            log.warn("Stream Long received: {}", streamReceived.readLong());
+            MapMessage mapReceived = (MapMessage) jmsContext.createConsumer(queue).receive();
+            log.warn("Map String, String received: {}", mapReceived.getString("yourName"));
+            log.warn("Map String, Double received: {}", mapReceived.getDouble("amount"));
+        }
+    }
+
+    @Bean
+    public void objectMessage() throws NamingException, JMSException {
+        log.info("Starting objectMessage()");
+
+        InitialContext context = new InitialContext();
+        Queue queue = (Queue) context.lookup("queue/myQueue");
+
+        try (ActiveMQConnectionFactory cf = new ActiveMQConnectionFactory();
+             JMSContext jmsContext = cf.createContext()) {
+
+            JMSProducer producer = jmsContext.createProducer();
+            ObjectMessage objectMessage = jmsContext.createObjectMessage();
+            objectMessage.setObject(new Cat("Jasper", 13.2));
+
+            producer.send(queue, objectMessage);
+
+            JMSConsumer consumer = jmsContext.createConsumer(queue);
+            ObjectMessage objectReceived = (ObjectMessage) consumer.receive();
+            log.warn("Object message received: {}", objectReceived.getObject());
         }
     }
 }
